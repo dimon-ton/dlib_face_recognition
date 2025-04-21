@@ -100,3 +100,13 @@ for image_name in os.listdir(album_folder):
                 break  # Exit loop once a match is found
         else:
             print(f"Your face is not in {sanitized_image_name}") 
+
+
+        
+
+            # Remove the processed image to save disk space
+        try:
+            os.remove(sanitized_image_path)
+            print(f"Deleted original image: {sanitized_image_name}")
+        except Exception as e:
+            print(f"Failed to delete {sanitized_image_name}: {e}")
