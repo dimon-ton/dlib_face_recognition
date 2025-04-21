@@ -1,14 +1,9 @@
-import dlib
+import face_recognition
 import cv2
 import numpy as np
 import os
 
-# Load the face detector and face recognition model
-detector = dlib.get_frontal_face_detector()
-sp = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")  # Download from dlib
-face_rec_model = dlib.face_recognition_model_v1("dlib_face_recognition_resnet_model_v1.dat")  # Download from dlib
-
-# Load multiple reference images of your face
+# Load the reference images and their encodings
 def load_reference_images(folder_path):
     reference_encodings = []
     reference_images = []
@@ -16,14 +11,11 @@ def load_reference_images(folder_path):
     for image_name in os.listdir(folder_path):
         if image_name.lower().endswith(('.png', '.jpg', '.jpeg')):
             image_path = os.path.join(folder_path, image_name)
-            image = cv2.imread(image_path)
-            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            faces = detector(gray)
+            image = face_recognition.load_image_file(image_path)
+            encoding = face_recognition.face_encodings(image)
 
-            for face in faces:
-                landmarks = sp(gray, face)
-                face_encoding = face_rec_model.compute_face_descriptor(image, landmarks)
-                reference_encodings.append(np.array(face_encoding))  # Store encoding
+            if encoding:  # Ensure there is at least one face in the image
+                reference_encodings.append(encoding[0])  # Store the first encoding
                 reference_images.append(image)  # Store the corresponding image for later
 
     return reference_encodings, reference_images
@@ -40,7 +32,6 @@ def remove_non_ascii(text):
 my_face_folder = r"C:\Users\saich\Documents\testing_detect_face\my_face"
 if not os.path.exists(my_face_folder):
     os.makedirs(my_face_folder)
-
 
 # Create 'frame_face' folder if it doesn't exist
 frame_face_folder = r"C:\Users\saich\Documents\testing_detect_face\frame_face"
@@ -59,19 +50,15 @@ for image_name in os.listdir(album_folder):
     if image_name != sanitized_image_name:
         os.rename(image_path, sanitized_image_path)  # Rename the file
 
-    image = cv2.imread(sanitized_image_path)
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    # Load the image
+    image = face_recognition.load_image_file(sanitized_image_path)
+    face_locations = face_recognition.face_locations(image)
+    face_encodings = face_recognition.face_encodings(image, face_locations)
     
-    # Detect faces
-    faces = detector(gray)
-    
-    for face in faces:
-        landmarks = sp(gray, face)
-        face_encoding = face_rec_model.compute_face_descriptor(image, landmarks)
-        
-           # Compare the detected face with all reference encodings
+    for face_encoding in face_encodings:
+        # Compare the detected face with all reference encodings
         for reference_encoding, reference_image in zip(reference_encodings, reference_images):
-            distance = np.linalg.norm(np.array(reference_encoding) - np.array(face_encoding))
+            distance = np.linalg.norm(reference_encoding - face_encoding)
             
             if distance < 0.5:  # Threshold for face recognition
                 print(f"Your face is detected in {sanitized_image_name}")
@@ -79,34 +66,30 @@ for image_name in os.listdir(album_folder):
                 # Check if the image has already been saved in the "my_face" folder
                 saved_image_path = os.path.join(my_face_folder, sanitized_image_name)
                 if not os.path.exists(saved_image_path):
-                    cv2.imwrite(saved_image_path, image)  # Save the image
+                    cv2.imwrite(saved_image_path, cv2.cvtColor(image, cv2.COLOR_RGB2BGR))  # Save the image
                     print(f"Image saved as {sanitized_image_name} in 'my_face' folder.")
                 else:
                     print(f"Image {sanitized_image_name} already exists in 'my_face' folder, skipping save.")
 
-
-                                # Draw a frame around the face on the image
-                x, y, w, h = (face.left(), face.top(), face.width(), face.height())
-                cv2.rectangle(image, (x, y), (x + w, y + h), (0, 0, 225), 2)  # Green rectangle
+                # Draw a frame around the face on the image
+                for (top, right, bottom, left) in face_locations:
+                    cv2.rectangle(image, (left, top), (right, bottom), (0, 0, 255), 2)  # Red rectangle
                 
                 # Save the image with a frame in 'frame_face' folder
                 frame_image_path = os.path.join(frame_face_folder, sanitized_image_name)
                 if not os.path.exists(frame_image_path):
-                    cv2.imwrite(frame_image_path, image)  # Save the framed image
+                    cv2.imwrite(frame_image_path, cv2.cvtColor(image, cv2.COLOR_RGB2BGR))  # Save the framed image
                     print(f"Framed image saved as {sanitized_image_name} in 'frame_face' folder.")
                 else:
                     print(f"Framed image {sanitized_image_name} already exists in 'frame_face' folder, skipping save.")
                 
                 break  # Exit loop once a match is found
         else:
-            print(f"Your face is not in {sanitized_image_name}") 
+            print(f"Your face is not in {sanitized_image_name}")
 
-
-        
-
-            # Remove the processed image to save disk space
-        try:
-            os.remove(sanitized_image_path)
-            print(f"Deleted original image: {sanitized_image_name}")
-        except Exception as e:
-            print(f"Failed to delete {sanitized_image_name}: {e}")
+    # Remove the processed image to save disk space
+    try:
+        os.remove(sanitized_image_path)
+        print(f"Deleted original image: {sanitized_image_name}")
+    except Exception as e:
+        print(f"Failed to delete {sanitized_image_name}: {e}")
