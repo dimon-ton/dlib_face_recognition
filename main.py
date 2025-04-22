@@ -55,12 +55,12 @@ for image_name in os.listdir(album_folder):
     face_locations = face_recognition.face_locations(image)
     face_encodings = face_recognition.face_encodings(image, face_locations)
     
-    for face_encoding in face_encodings:
+    for face_encoding, face_location in zip(face_encodings, face_locations):
         # Compare the detected face with all reference encodings
         for reference_encoding, reference_image in zip(reference_encodings, reference_images):
             distance = np.linalg.norm(reference_encoding - face_encoding)
             
-            if distance < 0.5:  # Threshold for face recognition
+            if distance < 0.4:  # Threshold for face recognition
                 print(f"Your face is detected in {sanitized_image_name}")
                 
                 # Check if the image has already been saved in the "my_face" folder
@@ -71,9 +71,9 @@ for image_name in os.listdir(album_folder):
                 else:
                     print(f"Image {sanitized_image_name} already exists in 'my_face' folder, skipping save.")
 
-                # Draw a frame around the face on the image
-                for (top, right, bottom, left) in face_locations:
-                    cv2.rectangle(image, (left, top), (right, bottom), (0, 0, 255), 2)  # Red rectangle
+                # Draw a frame around the face that matches your reference
+                top, right, bottom, left = face_location
+                cv2.rectangle(image, (left, top), (right, bottom), (255, 0, 0), 3)  # Red rectangle 
                 
                 # Save the image with a frame in 'frame_face' folder
                 frame_image_path = os.path.join(frame_face_folder, sanitized_image_name)
@@ -88,8 +88,8 @@ for image_name in os.listdir(album_folder):
             print(f"Your face is not in {sanitized_image_name}")
 
     # Remove the processed image to save disk space
-    try:
-        os.remove(sanitized_image_path)
-        print(f"Deleted original image: {sanitized_image_name}")
-    except Exception as e:
-        print(f"Failed to delete {sanitized_image_name}: {e}")
+    # try:
+    #     os.remove(sanitized_image_path)
+    #     print(f"Deleted original image: {sanitized_image_name}")
+    # except Exception as e:
+    #     print(f"Failed to delete {sanitized_image_name}: {e}")
